@@ -1,0 +1,50 @@
+# WSL 单次训练；每次手动修改 config_vipc.py 后运行，不自动循环、不覆盖配置。
+#
+# 512 点配置示例（以下为 Python 配置，不是终端命令）：
+# __C.DATASETS.SHAPENET.N_POINTS = 512
+# __C.NETWORK.EGIInet.pc_sample_rate = 0.5
+# __C.NETWORK.EGIInet.pc_sample_scale = 2
+# __C.DIR.OUT_PATH = '/mnt/d/0916program/elevate/EGllnet/EGIInet/output/512'
+# __C.DATASETS.SHAPENET.VIPC_PATH = '/home/zenith/datasets/ShapeNetViPC-Dataset'
+# __C.TRAIN.CATE = 'plane'
+# __C.TEST.CATE = 'plane'
+# __C.TRAIN.BATCH_SIZE = 2
+# __C.TRAIN.N_EPOCHS = 160
+# __C.CONST.DEVICE = '0'
+# 从零训练：注释或删除 CONST.WEIGHTS 整行，不要设为 None。
+#
+# 固定 256 中心点（pc_sample_scale 保持 2）：
+# N_POINTS | pc_sample_rate | tokenizer 层数 | OUT_PATH 末尾
+# 512      | 0.5            | 1              | output/512
+# 1024     | 0.25           | 2              | output/1024
+# 2048     | 0.125          | 3              | output/2048
+# 采样率会改变 tokenizer 层数和参数结构，三个实验分别从零训练。
+# 后续测试时也需要匹配模型训练时的点数及采样率。
+#
+# WSL：执行一次训练，直接读取 config_vipc.py。
+cd /mnt/d/0916program/elevate/EGllnet/EGIInet
+conda activate py3.9_egiinet
+PYTHONPATH=. python -u main.py
+
+# 修改配置后，再次运行上面的命令即可训练另一种点数/类别。
+# 类别：cabinet car chair couch lamp plane table watercraft。
+# all 表示一个混合类别模型，不是分别训练八个模型。
+#
+# 权重路径示例：
+# output/512/plane/checkpoints/<时间戳>/ckpt-best.pth
+# output/1024/plane/checkpoints/<时间戳>/ckpt-best.pth
+# output/2048/plane/checkpoints/<时间戳>/ckpt-best.pth
+#
+# 另开 WSL 终端查看 TensorBoard；切换密度或类别时手动修改路径。
+conda activate py3.9_egiinet
+tensorboard --logdir /mnt/d/0916program/elevate/EGllnet/EGIInet/output/512/plane/logs --port 6006
+# Windows 浏览器访问 http://localhost:6006
+#
+# pc_input_num=3500 保持不变，不需要改为 n。
+# 数据加载时它仅将不足 3500 点的 partial 重复补齐，并不下采样更多的点。
+# 真正输入模型的点数由 train.py/test.py 后续 FPS 到 N_POINTS 决定。
+# 把它改成 512 不会保证所有样本恰好 512 点，还可能导致 batch 堆叠尺寸不一致。
+#
+# 当前 N_POINTS 同时作用于 partial 和 GT；解码器输出仍为 2048 点。
+# 解码器固定从 partial FPS 取 1024 点，512 点输入可能有重复点。
+# 固定 256 个中心点并不会消除解码器的这一问题。

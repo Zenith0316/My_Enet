@@ -1,0 +1,40 @@
+cd /mnt/d/0916program/elevate/EGllnet/EGIInet
+
+利用官方模型做测试：
+测试预测
+PYTHONPATH=. python show_analyze/run_official_inference.py \
+  --category all \
+  --count 1000 \
+  --weights-dir /mnt/d/Dataset/ShapeNetViPC/ShapeNetViPC/checkpoints_new \
+  --test-list ./data_pick_list/test_list.txt \
+  --output ./result/midu/gf_model/n2048/inference
+#  --output ./result/midu/gf_model/n1024/inference
+#  --output ./result/midu/gf_model/n512/inference
+利用自己模型
+PYTHONPATH=. python show_analyze/run_official_inference.py \
+  --category plane \
+  --count 1000 \
+  --weights ./output/2048/plane/checkpoints/26-10-28-15-26-57/ckpt-best.pth \
+  --test-list ./data_pick_list/test_list.txt \
+  --output ./result/midu/plane_26-10-28/n2048/inference
+
+只计算指标-不绘图
+PYTHONPATH=. python show_analyze/evaluate_prediction.py \
+  --input-root ./result/midu/gf_model/n2048/inference \
+  --output ./result/midu/gf_model/n2048/evaluation
+
+统计分析
+PYTHONPATH=. python show_analyze/analyze_1000_results.py \
+  --root ./result/midu/gf_model/n2048/evaluation \
+  --output ./result/midu/gf_model/n2048/analysis_1000
+
+
+单绘图-按需
+  PYTHONPATH=. python show_analyze/plot_prediction.py \
+  --input-dir ./result/midu/gf_model/n1024/inference/cabinet/0000 \
+  --output ./result/midu/gf_model/n1024/plots/cabinet/0000
+批量绘图
+  PYTHONPATH=. python show_analyze/plot_prediction.py \
+  --input-root ./result/midu/gf_model/n1024/inference \
+  --output ./result/midu/gf_model/n1024/plots
+
