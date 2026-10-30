@@ -27,7 +27,7 @@ def test_net(cfg, epoch_idx=-1, test_data_loader=None, test_writer=None, model=N
     if test_data_loader is None:
         # 独立测试时构造测试数据集和 DataLoader。
 
-        ViPC_test = ViPCDataLoader(r'/mnt/d/0916program/elevate/EGllnet/EGIInet/data_pick_list/test_list.txt',
+        ViPC_test = ViPCDataLoader(cfg.DATASETS.SHAPENET.TEST_LIST,
                                    data_path=cfg.DATASETS.SHAPENET.VIPC_PATH,
                                    status='test',
                                    view_align=False, category=cfg.TEST.CATE)
@@ -36,7 +36,7 @@ def test_net(cfg, epoch_idx=-1, test_data_loader=None, test_writer=None, model=N
                                      num_workers=cfg.CONST.NUM_WORKERS,
                                      shuffle=True,
                                      drop_last=True,
-                                     prefetch_factor=cfg.CONST.DATA_perfetch)
+                                     **({'prefetch_factor': cfg.CONST.DATA_perfetch} if cfg.CONST.NUM_WORKERS > 0 else {}))
 
     # 独立测试没有传入模型时，构建网络并加载 checkpoint。
     if model is None:

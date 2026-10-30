@@ -29,11 +29,8 @@ def configure_plotting():
 
     plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "Noto Sans CJK SC", "WenQuanYi Micro Hei", "DejaVu Sans"]
     plt.rcParams["axes.unicode_minus"] = False
-    for font_path in (
-        "/mnt/c/Windows/Fonts/msyh.ttc",
-        "/mnt/c/Windows/Fonts/simhei.ttf",
-        "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
-    ):
+    # Use installed fonts, or a font file explicitly supplied by the server.
+    for font_path in (os.environ.get("EGIINET_FONT", ""),):
         if os.path.isfile(font_path):
             font_manager.fontManager.addfont(font_path)
             plt.rcParams["font.family"] = font_manager.FontProperties(fname=font_path).get_name()

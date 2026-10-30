@@ -1,11 +1,12 @@
-cd /mnt/d/0916program/elevate/EGllnet/EGIInet
+# Linux：先按《LINUX_SERVER_CONFIG.md》设置 EGIINET_ROOT、VIPC_DATA 等变量。
+cd "$EGIINET_ROOT"
 
 利用官方模型做测试：
 测试预测
 PYTHONPATH=. python show_analyze/run_official_inference.py \
   --category all \
   --count 1000 \
-  --weights-dir /mnt/d/Dataset/ShapeNetViPC/ShapeNetViPC/checkpoints_new \
+  --weights-dir "$EGIINET_WEIGHTS_DIR" \
   --test-list ./data_pick_list/test_list.txt \
   --output ./result/midu/gf_model/n2048/inference
 #  --output ./result/midu/gf_model/n1024/inference

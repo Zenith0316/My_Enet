@@ -81,7 +81,3 @@ id_ed25519.*
 .DS_Store
 Thumbs.db
 Desktop.ini
-
-# Local report helper (depends on an external evaluate_pointclouds module)
-localize_report_figures.py
-

@@ -7,10 +7,14 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from config_vipc import cfg
+from runtime_paths import project_path
+
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", cfg.CONST.DEVICE)
+
 import torch
 from PIL import Image
 
-from config_vipc import cfg
 from models.EGIInet import EGIInet
 from utils.ViPCdataloader import ViPCDataLoader
 from utils.loss_utils import calc_cd, farthest_point_sample
@@ -86,11 +90,11 @@ def main():
     parser.add_argument("--category", choices=categories + ("all",), default="plane")
     parser.add_argument("--weights", default=None, help="checkpoint file (official or self-trained); defaults to the selected category")
     parser.add_argument("--weights-dir", default=None, help="directory containing <category>-ckpt-best.pth (useful with --category all)")
-    parser.add_argument("--test-list", default="./data_pick_list/test_list.txt")
+    parser.add_argument("--test-list", default=cfg.DATASETS.SHAPENET.TEST_LIST)
     parser.add_argument("--index", type=int, default=None, help="save one sample")
     parser.add_argument("--count", type=int, default=12, help="save the first N samples")
     parser.add_argument("--all", action="store_true", help="save every sample")
-    parser.add_argument("--output", default="./result/inference")
+    parser.add_argument("--output", default=project_path("result/inference"))
     args = parser.parse_args()
 
     random.seed(0)
@@ -98,13 +102,14 @@ def main():
     torch.manual_seed(0)
     torch.cuda.manual_seed_all(0)
 
+    # Logical GPU 0 is the first device exposed by CUDA_VISIBLE_DEVICES.
     device = torch.device("cuda:0")
     output_dir = os.path.abspath(args.output)
     os.makedirs(output_dir, exist_ok=True)
     selected_categories = categories if args.category == "all" else (args.category,)
     for category in selected_categories:
         weights = args.weights or os.path.join(
-            args.weights_dir or "/mnt/d/Dataset/ShapeNetViPC/ShapeNetViPC/checkpoints_new",
+            args.weights_dir or cfg.DIR.WEIGHTS,
             "%s-ckpt-best.pth" % category,
         )
         if not os.path.isfile(weights):

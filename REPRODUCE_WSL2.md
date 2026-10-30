@@ -1,3 +1,5 @@
+> Linux 服务器请优先使用 [服务器配置与硬编码清单](LINUX_SERVER_CONFIG.md)。本文保留原 WSL2 安装记录；其中 `/mnt/d` 路径仅为旧机器示例。当前路径已集中配置，WEIGHTS 为空即可从零训练，NUM_WORKERS=0 已支持。
+
 # EGIInet 在 Windows + WSL2 Ubuntu 22.04 中复现
 
 本文面向已经安装好 WSL2、Ubuntu 22.04 和 Conda 的环境。项目使用 CUDA 自定义算子进行点云采样、Chamfer Distance 和 EMD 计算，因此必须使用 NVIDIA GPU；当前代码不能使用 CPU 模式运行。

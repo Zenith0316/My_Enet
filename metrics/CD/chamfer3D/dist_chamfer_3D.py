@@ -12,20 +12,12 @@ import os
 print("Jitting Chamfer 3D")
 
 from torch.utils.cpp_extension import load
-p=os.path.abspath(__file__).split('/')[:-1]
 
-"""
-chamfer_3D = load(name="chamfer_3D",
-        sources=[
-            r"D:\0StudyRelated\SVDFormer-main\SVDFormer-main\metrics\CD\chamfer3D\chamfer_cuda.cpp",
-            r"D:\0StudyRelated\SVDFormer-main\SVDFormer-main\metrics\CD\chamfer3D\chamfer3D.cu",
-            ])
-"""
 
 chamfer_3D = load(name="chamfer_3D",
         sources=[
-            "/".join(os.path.abspath(__file__).split('/')[:-1] + ["chamfer_cuda.cpp"]),
-            "/".join(os.path.abspath(__file__).split('/')[:-1] + ["chamfer3D.cu"]),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "chamfer_cuda.cpp"),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "chamfer3D.cu"),
             ])
 print("Loaded JIT 3D CUDA chamfer distance")
 

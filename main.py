@@ -3,16 +3,18 @@ import logging
 import os
 import numpy as np
 import sys
-import torch
 from pprint import pprint
 from config_vipc import cfg
-from run.train import train_net
-from run.test import test_net
 
 # 指定 CUDA 设备的编号规则和本次程序可见的 GPU。
 # cfg.CONST.DEVICE 通常是配置文件中的 GPU 编号，例如 "0" 或 "0,1"。
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = cfg.CONST.DEVICE
+os.environ.setdefault("CUDA_DEVICE_ORDER", "PCI_BUS_ID")
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", cfg.CONST.DEVICE)
+
+# 在导入 PyTorch/CUDA 扩展之前设置 GPU 可见性。
+import torch
+from run.train import train_net
+from run.test import test_net
 
 
 def set_seed(seed):
@@ -70,7 +72,7 @@ def main():
 if __name__ == '__main__':
     # 只有直接执行 main.py 时才运行以下初始化和主流程；
     # 当 main.py 被其他模块导入时，这部分代码不会执行。
-    seed = 1
+    seed = cfg.CONST.SEED
     set_seed(seed)
 
     # PIL 在读取图片时可能输出较多调试信息，这里只保留 WARNING 及以上级别。

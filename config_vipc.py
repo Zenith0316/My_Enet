@@ -1,4 +1,6 @@
+import os
 from easydict import EasyDict as edict
+from runtime_paths import env_path
 
 # 本文件集中保存数据集、模型、训练和测试参数。
 # EasyDict 允许使用 cfg.TRAIN.BATCH_SIZE 这样的“属性访问”方式读取字典配置，
@@ -20,8 +22,10 @@ __C.DATASETS.SHAPENET.N_POINTS                   = 2048
 
 # ShapeNetViPC 数据集的根目录。
 # 该目录下应包含 ShapeNetViPC-Partial、ShapeNetViPC-GT、ShapeNetViPC-View。
-# 运行项目前需要根据实际机器修改此绝对路径。
-__C.DATASETS.SHAPENET.VIPC_PATH        = '/home/zenith/datasets/ShapeNetViPC-Dataset'
+# 可通过 VIPC_DATA 指定服务器数据目录；相对路径以项目根目录为基准。
+__C.DATASETS.SHAPENET.VIPC_PATH = env_path('VIPC_DATA', 'datasets/ShapeNetViPC-Dataset')
+__C.DATASETS.SHAPENET.TRAIN_LIST = env_path('EGIINET_TRAIN_LIST', 'data_pick_list/train_plane_10000_list.txt')
+__C.DATASETS.SHAPENET.TEST_LIST = env_path('EGIINET_TEST_LIST', 'data_pick_list/test_list.txt')
 
 # =============================================================================
 # 通用运行参数
@@ -29,9 +33,8 @@ __C.DATASETS.SHAPENET.VIPC_PATH        = '/home/zenith/datasets/ShapeNetViPC-Dat
 __C.CONST                                        = edict()
 
 # PyTorch DataLoader 用于并行读取数据的子进程数。
-# 数值越大不一定越快，还会增加 CPU 和内存开销。若要设为 0，当前项目还需
-# 同时修改 train.py/test.py，使 DataLoader 不再接收 prefetch_factor 参数。
-__C.CONST.NUM_WORKERS                            = 2
+# 数值越大不一定越快，还会增加 CPU 和内存开销；0 表示在主进程读取。
+__C.CONST.NUM_WORKERS = int(os.environ.get('EGIINET_NUM_WORKERS', '2'))
 
 # DataLoader 中每个 worker 提前加载的 batch 数，即 prefetch_factor。
 # 当前配置表示每个数据加载进程最多预取 2 个 batch。
@@ -45,11 +48,14 @@ __C.DIR                                          = edict()
 # 训练结果的根目录。
 # run/train.py 会在其下按以下结构创建检查点和 TensorBoard 日志：
 # OUT_PATH/<训练类别>/checkpoints/<时间>/ 和 OUT_PATH/<训练类别>/logs/<时间>/。
-__C.DIR.OUT_PATH                                 = '/mnt/d/0916program/elevate/EGllnet/EGIInet/output/2048'
+__C.DIR.OUT_PATH = env_path('EGIINET_OUTPUT', 'output/%s' % __C.DATASETS.SHAPENET.N_POINTS)
+__C.DIR.WEIGHTS = env_path('EGIINET_WEIGHTS_DIR', 'checkpoints')
 
 # 指定程序可见的 GPU 编号，对应 main.py 中的 CUDA_VISIBLE_DEVICES。
 # '0' 表示只使用第 0 张 GPU；多卡可写成 '0,1'。
-__C.CONST.DEVICE                                 = '0'
+# 优先保留服务器/Slurm 已指定的可见设备。
+__C.CONST.DEVICE = os.environ.get('CUDA_VISIBLE_DEVICES', os.environ.get('EGIINET_DEVICE', '0'))
+__C.CONST.SEED = int(os.environ.get('EGIINET_SEED', '1'))
 
 # =============================================================================
 # 网络结构配置
@@ -159,8 +165,5 @@ __C.TEST.BATCH_SIZE                              = 1
 
 # 预训练/检查点文件路径。
 # 使用 --test 或 --inference 时必须配置；文件中应包含名为 'model' 的状态字典。
-# 注意：run/train.py 通过判断 WEIGHTS 这个键是否存在来决定是否恢复训练。因此：
-#   - 继续训练：保留此配置，并指向有效检查点（还需包含 'optimizer'）。
-#   - 从零训练：需要注释或删除整行，不能只把值改为 None。
-# 当前是 Linux/WSL 风格绝对路径，请确认它在实际运行环境中存在。
-#__C.CONST.WEIGHTS = '/mnt/d/Dataset/ShapeNetViPC/ShapeNetViPC/checkpoints_new/plane-ckpt-best.pth'
+# EGIINET_WEIGHTS 为空时从零训练；非空时训练入口加载模型和优化器，测试入口加载模型。
+__C.CONST.WEIGHTS = env_path('EGIINET_WEIGHTS', os.environ['EGIINET_WEIGHTS']) if os.environ.get('EGIINET_WEIGHTS') else None

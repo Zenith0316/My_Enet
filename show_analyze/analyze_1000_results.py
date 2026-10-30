@@ -118,7 +118,7 @@ def copy_selected(selections, output):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", default="/mnt/d/0916program/elevate/EGllnet/EGIInet/result/evaluation_1000_samples_per_category_emd1024")
+    parser.add_argument("--root", type=Path, required=True, help="评估结果根目录（包含各类别子目录）")
     parser.add_argument("--output", default=None)
     args = parser.parse_args()
     root = Path(args.root).resolve()

@@ -30,17 +30,10 @@ import os
 
 from torch.utils.cpp_extension import load
 
-"""
 emd = load(name="emd",
         sources=[
-            r"D:\0StudyRelated\SVDFormer-main\SVDFormer-main\metrics\EMD\emd.cpp",
-            r"D:\0StudyRelated\SVDFormer-main\SVDFormer-main\metrics\EMD\emd_cuda.cu",
-            ])
-"""
-emd = load(name="emd",
-        sources=[
-            "/".join(os.path.abspath(__file__).split('/')[:-1] + ["emd.cpp"]),
-            "/".join(os.path.abspath(__file__).split('/')[:-1] + ["emd_cuda.cu"]),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "emd.cpp"),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "emd_cuda.cu"),
             ])
 
 print("Loaded JIT 3D CUDA emd")

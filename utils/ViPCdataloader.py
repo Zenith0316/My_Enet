@@ -234,8 +234,11 @@ class ViPCDataLoader(Dataset):
 if __name__ == "__main__":
     # 直接执行本文件时运行一个简单的数据读取示例；被其他模块导入时不会执行。
     from torch.utils.data import DataLoader
-    category = "table"
-    ViPCDataset = ViPCDataLoader('test_list2.txt',data_path='/home/aiello/ShapeNetViPC-Dataset',status='test', category = category)
+    from config_vipc import cfg
+    category = cfg.TEST.CATE
+    ViPCDataset = ViPCDataLoader(cfg.DATASETS.SHAPENET.TEST_LIST,
+                                data_path=cfg.DATASETS.SHAPENET.VIPC_PATH,
+                                status='test', category=category)
     train_loader = DataLoader(ViPCDataset,
                               batch_size=1,
                               num_workers=1,

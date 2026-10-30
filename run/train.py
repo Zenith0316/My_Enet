@@ -31,7 +31,7 @@ def train_net(cfg):
 
     # 清单中的样本由 ViPCDataLoader 转换为图像、完整点云和残缺点云。
     # view_align=False 会随机选取同一物体的图像/GT 视角。
-    ViPC_train = ViPCDataLoader(r'/mnt/d/0916program/elevate/EGllnet/EGIInet/data_pick_list/train_plane_10000_list.txt',
+    ViPC_train = ViPCDataLoader(cfg.DATASETS.SHAPENET.TRAIN_LIST,
                                  data_path=cfg.DATASETS.SHAPENET.VIPC_PATH, status='train',
                                  view_align=False, category=cfg.TRAIN.CATE)
     # drop_last=True 保证每个 batch 尺寸一致；prefetch_factor 控制 worker 预取数量。
@@ -40,10 +40,10 @@ def train_net(cfg):
                               num_workers=cfg.CONST.NUM_WORKERS,
                               shuffle=True,
                               drop_last=True,
-                              prefetch_factor=cfg.CONST.DATA_perfetch)
+                              **({'prefetch_factor': cfg.CONST.DATA_perfetch} if cfg.CONST.NUM_WORKERS > 0 else {}))
 
     # 训练期间使用测试清单作为验证集，类别跟随 TRAIN.CATE。
-    ViPC_test = ViPCDataLoader(r'/mnt/d/0916program/elevate/EGllnet/EGIInet/data_pick_list/test_list.txt',
+    ViPC_test = ViPCDataLoader(cfg.DATASETS.SHAPENET.TEST_LIST,
                                 data_path=cfg.DATASETS.SHAPENET.VIPC_PATH, status='test',
                                 view_align=False, category=cfg.TRAIN.CATE)
     val_data_loader = DataLoader(ViPC_test,
@@ -51,7 +51,7 @@ def train_net(cfg):
                                    num_workers=cfg.CONST.NUM_WORKERS,
                                    shuffle=True,
                                    drop_last=True,
-                                   prefetch_factor=cfg.CONST.DATA_perfetch)
+                                   **({'prefetch_factor': cfg.CONST.DATA_perfetch} if cfg.CONST.NUM_WORKERS > 0 else {}))
 
     # 按类别和时间创建 checkpoint、TensorBoard 日志目录。
     output_dir = os.path.join(cfg.DIR.OUT_PATH, cfg.TRAIN.CATE, '%s', datetime.now().strftime('%y-%m-%d-%H-%M-%S'))
@@ -90,8 +90,8 @@ def train_net(cfg):
     steps = 0
     BestEpoch = 0
 
-    # EasyDict 中存在 WEIGHTS 键就会恢复模型和优化器状态；从零训练时应删除该键。
-    if 'WEIGHTS' in cfg.CONST:
+    # 仅在指定非空检查点路径时加载模型和优化器状态。
+    if cfg.CONST.get('WEIGHTS'):
         logging.info('Recovering from %s ...' % (cfg.CONST.WEIGHTS))
         checkpoint = torch.load(cfg.CONST.WEIGHTS)
         model.load_state_dict(checkpoint['model'])

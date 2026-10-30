@@ -1,17 +1,18 @@
-# WSL 单次训练；每次手动修改 config_vipc.py 后运行，不自动循环、不覆盖配置。
+# Linux：先按《LINUX_SERVER_CONFIG.md》设置 EGIINET_ROOT、VIPC_DATA 等变量。
+# Linux 单次训练；每次手动修改 config_vipc.py 后运行，不自动循环、不覆盖配置。
 #
 # 512 点配置示例（以下为 Python 配置，不是终端命令）：
 # __C.DATASETS.SHAPENET.N_POINTS = 512
 # __C.NETWORK.EGIInet.pc_sample_rate = 0.5
 # __C.NETWORK.EGIInet.pc_sample_scale = 2
-# __C.DIR.OUT_PATH = '/mnt/d/0916program/elevate/EGllnet/EGIInet/output/512'
-# __C.DATASETS.SHAPENET.VIPC_PATH = '/home/zenith/datasets/ShapeNetViPC-Dataset'
+# export EGIINET_OUTPUT="$EGIINET_ROOT/output/512"
+# export VIPC_DATA="/实际数据目录/ShapeNetViPC-Dataset"
 # __C.TRAIN.CATE = 'plane'
 # __C.TEST.CATE = 'plane'
 # __C.TRAIN.BATCH_SIZE = 2
 # __C.TRAIN.N_EPOCHS = 160
 # __C.CONST.DEVICE = '0'
-# 从零训练：注释或删除 CONST.WEIGHTS 整行，不要设为 None。
+# 从零训练：unset EGIINET_WEIGHTS；加载模型和优化器：export EGIINET_WEIGHTS="实际检查点路径"。
 #
 # 固定 256 中心点（pc_sample_scale 保持 2）：
 # N_POINTS | pc_sample_rate | tokenizer 层数 | OUT_PATH 末尾
@@ -21,9 +22,9 @@
 # 采样率会改变 tokenizer 层数和参数结构，三个实验分别从零训练。
 # 后续测试时也需要匹配模型训练时的点数及采样率。
 #
-# WSL：执行一次训练，直接读取 config_vipc.py。
-cd /mnt/d/0916program/elevate/EGllnet/EGIInet
-conda activate py3.9_egiinet
+# Linux：执行一次训练，直接读取 config_vipc.py。
+cd "$EGIINET_ROOT"
+conda activate egiinet
 PYTHONPATH=. python -u main.py
 
 # 修改配置后，再次运行上面的命令即可训练另一种点数/类别。
@@ -35,9 +36,9 @@ PYTHONPATH=. python -u main.py
 # output/1024/plane/checkpoints/<时间戳>/ckpt-best.pth
 # output/2048/plane/checkpoints/<时间戳>/ckpt-best.pth
 #
-# 另开 WSL 终端查看 TensorBoard；切换密度或类别时手动修改路径。
-conda activate py3.9_egiinet
-tensorboard --logdir /mnt/d/0916program/elevate/EGllnet/EGIInet/output/512/plane/logs --port 6006
+# 另开 Linux 终端查看 TensorBoard；切换密度或类别时手动修改路径。
+conda activate egiinet
+tensorboard --logdir "$EGIINET_ROOT/output/512/plane/logs" --port 6006
 # Windows 浏览器访问 http://localhost:6006
 #
 # pc_input_num=3500 保持不变，不需要改为 n。
