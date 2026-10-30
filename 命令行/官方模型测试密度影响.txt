@@ -1,4 +1,7 @@
-# Linux：先按《LINUX_SERVER_CONFIG.md》设置 EGIINET_ROOT、VIPC_DATA 等变量。
+# Linux：先按《MD/LINUX_SERVER_CONFIG.md》设置 EGIINET_ROOT、VIPC_DATA 等变量。
+conda activate py3.9_egiinet
+export EGIINET_ROOT=/home4/zt26/code/egllnet
+export EGIINET_WEIGHTS_DIR=/home4/zt26/data/raw/shapenet_vipc/checkpoint
 cd "$EGIINET_ROOT"
 
 利用官方模型做测试：
@@ -11,11 +14,11 @@ PYTHONPATH=. python show_analyze/run_official_inference.py \
   --output ./result/midu/gf_model/n2048/inference
 #  --output ./result/midu/gf_model/n1024/inference
 #  --output ./result/midu/gf_model/n512/inference
-利用自己模型
+利用自己模型（将 <实验目录> 替换为实际名称）
 PYTHONPATH=. python show_analyze/run_official_inference.py \
   --category plane \
   --count 1000 \
-  --weights ./output/2048/plane/checkpoints/26-10-28-15-26-57/ckpt-best.pth \
+  --weights "/home4/zt26/runs/<实验目录>/checkpoints/ckpt-best.pth" \
   --test-list ./data_pick_list/test_list.txt \
   --output ./result/midu/plane_26-10-28/n2048/inference
 

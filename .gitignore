@@ -35,6 +35,7 @@ dist/
 # Training checkpoints, TensorBoard logs, and generated reports
 /output/
 /outputs/
+/runs/
 /result/
 /project_logs/
 /pptx_edit_tmp/

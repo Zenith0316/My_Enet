@@ -5,6 +5,8 @@
 """
 
 import os
+from pathlib import Path
+from runtime_paths import project_path
 from torchvision import transforms
 import os.path
 from torch.utils.data import Dataset
@@ -107,17 +109,35 @@ class ViPCDataLoader(Dataset):
             'watercraft':'04530566'
         }
 
-        # 逐行读取训练或测试清单。这里保留了行尾换行符，构造路径时再移除。
-        with open(filepath,'r') as f:
-            line = f.readline()
-            while (line):
-                self.filelist.append(line)
-                line = f.readline()
+        if category != 'all' and category not in self.cat_map:
+            raise ValueError('Unknown ShapeNet category: %s' % category)
+        if pc_input_num <= 0:
+            raise ValueError('pc_input_num must be positive')
+
+        # 兼容 UTF-8/BOM、CRLF、空行和末行无换行；统一清单的路径分隔符。
+        filepath = project_path(filepath)
+        data_path = project_path(data_path)
+        with open(filepath, 'r', encoding='utf-8-sig') as f:
+            for line_num, line in enumerate(f, start=1):
+                key = line.strip().replace('\\', '/')
+                if not key:
+                    continue
+                parts = key.split('/')
+                if (len(parts) != 3 or not parts[0] or not parts[1]
+                        or parts[0] in ('.', '..') or parts[1] in ('.', '..')
+                        or not parts[2].isascii() or not parts[2].isdigit()
+                        or not 0 <= int(parts[2]) < 24):
+                    raise ValueError('%s:%d: expected category/object/view (00-23), got %r'
+                                     % (filepath, line_num, key))
+                self.filelist.append('/'.join((parts[0], parts[1], parts[2].zfill(2))))
 
         # 数据集的三个子目录分别保存残缺点云、完整点云和渲染图像。
         self.imcomplete_path = os.path.join(data_path,'ShapeNetViPC-Partial')
         self.gt_path = os.path.join(data_path,'ShapeNetViPC-GT')
         self.rendering_path = os.path.join(data_path,'ShapeNetViPC-View')
+        for directory in (self.imcomplete_path, self.gt_path, self.rendering_path):
+            if not os.path.isdir(directory):
+                raise FileNotFoundError('Missing ShapeNetViPC directory: %s; check VIPC_DATA' % directory)
 
         # 按指定类别过滤清单。路径第一段就是 ShapeNet taxonomy ID。
         for key in self.filelist:
@@ -126,6 +146,8 @@ class ViPCDataLoader(Dataset):
                     continue
             self.cat.append(key.split(';')[0])
             self.key.append(key)
+        if not self.key:
+            raise ValueError('No samples for category %r in %s' % (category, filepath))
 
         # 图像预处理：将较短边缩放到 224，再转换成 [C,H,W]、值域 [0,1] 的张量。
         # ShapeNetViPC 的渲染图通常是正方形，因此处理后通常为 [C,224,224]。
@@ -142,48 +164,30 @@ class ViPCDataLoader(Dataset):
         """读取并预处理索引 idx 对应的一个样本。"""
 
         # key 形如“类别ID/物体ID/残缺点云视角ID”。
-        key = self.key[idx]
+        taxonomy, object_id, part_view_id = self.key[idx].split('/')
+        pc_part_path = Path(self.imcomplete_path) / taxonomy / object_id / (part_view_id + '.dat')
 
-        # 残缺点云始终使用清单给出的视角。
-        pc_part_path = os.path.join(self.imcomplete_path,key.split('/')[0]+'/'+ key.split('/')[1]+'/'+key.split('/')[-1].replace('\n', '')+'.dat')
-
-        # view_align=True：图像、完整点云使用与残缺点云相同的视角编号。
-        # view_align=False：为同一物体随机选择 00~23 中的一个图像视角。
-        # 当前训练和测试代码都传入 False，因此同一样本每次读取到的图像可能不同。
-        if self.view_align:
-            ran_key = key        
-        else:
-            # key 的末尾是“两位视角编号 + 换行符”，先移除这 3 个字符再拼接随机编号。
-            ran_key = key[:-3]+str(random.randint(0,23)).rjust(2,'0')
-
-        # 完整点云和图像使用 ran_key 指定的视角。
-        pc_path = os.path.join(self.gt_path, ran_key.split('/')[0]+'/'+ ran_key.split('/')[1]+'/'+ran_key.split('/')[-1].replace('\n', '')+'.dat')
-        view_path = os.path.join(self.rendering_path,ran_key.split('/')[0]+'/'+ran_key.split('/')[1]+'/rendering/'+ran_key.split('/')[-1].replace('\n','')+'.png')
-
-        # 兼容原始清单中少数格式异常的行：如果最后一段不只是两位视角编号，
-        # 就把最后两位作为视角编号，前面的字符并回物体 ID 后重新构造路径。
-        if(len(ran_key.split('/')[-1])>3):
-            print("bug")
-            print(ran_key.split('/')[-1])
-            fin = ran_key.split('/')[-1][-2:]
-            interm = ran_key.split('/')[-1][:-2]
-            
-            pc_path = os.path.join(self.gt_path, ran_key.split('/')[0]+'/'+ interm +'/'+ fin.replace('\n', '')+'.dat')
-            view_path = os.path.join(self.rendering_path,ran_key.split('/')[0]+ '/' + interm + '/rendering/' + fin.replace('\n','')+'.png')
-
-        # 读取渲染图并应用上面定义的缩放、张量转换。
-        views = self.transform(Image.open(view_path))
-
-        # 只保留 RGB 三个通道，避免源图带有 alpha 通道时得到 4 通道输入。
-        views = views[:3,:,:]
+        # 图像/GT 随机视角保持原实验行为；不再依赖末尾换行和字符串截断。
+        image_view_id = part_view_id if self.view_align else '%02d' % random.randint(0, 23)
+        pc_path = Path(self.gt_path) / taxonomy / object_id / (image_view_id + '.dat')
+        rendering_dir = Path(self.rendering_path) / taxonomy / object_id / 'rendering'
+        view_path = rendering_dir / (image_view_id + '.png')
+        with Image.open(view_path) as image:
+            views = self.transform(image.convert('RGB'))
 
         # 从 ShapeNetViPC-GT 读取完整点云，作为网络需要预测的真值。
         with open(pc_path,'rb') as f:
-            pc = pickle.load(f).astype(np.float32)
+            pc = np.asarray(pickle.load(f, encoding='latin1'), dtype=np.float32)
 
         # 从 ShapeNetViPC-Partial 读取残缺点云，作为网络的点云输入。
         with open(pc_part_path,'rb') as f:
-            pc_part = pickle.load(f).astype(np.float32)
+            pc_part = np.asarray(pickle.load(f, encoding='latin1'), dtype=np.float32)
+
+        # .dat 按原始 pickle 格式读取；latin1 兼容 Python 2 生成的 NumPy pickle。
+        for path, points in ((pc_path, pc), (pc_part_path, pc_part)):
+            if (points.ndim != 2 or points.shape[1] != 3 or len(points) == 0
+                    or not np.isfinite(points).all()):
+                raise ValueError('Expected nonempty finite [N, 3] point cloud: %s' % path)
 
         # 某些残缺点云少于 pc_input_num 个点时，循环重复已有点并截取到目标数量。
         # 后续 train.py/test.py 还会使用 FPS 将其采样为配置中的 N_POINTS（默认 2048）。
@@ -191,13 +195,11 @@ class ViPCDataLoader(Dataset):
             pc_part = np.repeat(pc_part,(self.pc_input_num//pc_part.shape[0])+1,axis=0)[0:self.pc_input_num]
 
 
-        # 从文件名取得图像和残缺点云各自的两位视角编号。
-        image_view_id = view_path.split('.')[0].split('/')[-1]
-        part_view_id = pc_part_path.split('.')[0].split('/')[-1]
-
-        # 每个物体的 rendering_metadata.txt 记录 24 个相机视角的信息。
-        # 前两列分别用于取得 theta、phi；元数据中的角度值需转换为弧度。
-        view_metadata = np.loadtxt(view_path[:-6]+'rendering_metadata.txt')
+        # 元数据路径按目录拼接，兼容 Windows、Linux 及含点号的目录名。
+        view_metadata = np.loadtxt(rendering_dir / 'rendering_metadata.txt', encoding='utf-8-sig', ndmin=2)
+        if (view_metadata.shape[0] <= max(int(part_view_id), int(image_view_id))
+                or view_metadata.shape[1] < 2 or not np.isfinite(view_metadata[:, :2]).all()):
+            raise ValueError('Invalid rendering metadata: %s' % rendering_dir)
 
         theta_part = math.radians(view_metadata[int(part_view_id),0])
         phi_part = math.radians(view_metadata[int(part_view_id),1])
@@ -217,6 +219,8 @@ class ViPCDataLoader(Dataset):
         gt_mean = pc.mean(axis=0) 
         pc = pc -gt_mean
         pc_L_max = np.max(np.sqrt(np.sum(abs(pc ** 2), axis=-1)))
+        if pc_L_max <= 0:
+            raise ValueError('Cannot normalize zero-radius point cloud: %s' % pc_path)
         pc = pc/pc_L_max
 
         pc_part = pc_part-gt_mean

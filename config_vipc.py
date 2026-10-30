@@ -1,6 +1,6 @@
 import os
 from easydict import EasyDict as edict
-from runtime_paths import env_path
+from runtime_paths import env_path, storage_default, vipc_default
 
 # 本文件集中保存数据集、模型、训练和测试参数。
 # EasyDict 允许使用 cfg.TRAIN.BATCH_SIZE 这样的“属性访问”方式读取字典配置，
@@ -22,9 +22,10 @@ __C.DATASETS.SHAPENET.N_POINTS                   = 2048
 
 # ShapeNetViPC 数据集的根目录。
 # 该目录下应包含 ShapeNetViPC-Partial、ShapeNetViPC-GT、ShapeNetViPC-View。
-# 可通过 VIPC_DATA 指定服务器数据目录；相对路径以项目根目录为基准。
-__C.DATASETS.SHAPENET.VIPC_PATH = env_path('VIPC_DATA', 'datasets/ShapeNetViPC-Dataset')
-__C.DATASETS.SHAPENET.TRAIN_LIST = env_path('EGIINET_TRAIN_LIST', 'data_pick_list/train_plane_10000_list.txt')
+# VIPC_DATA 优先，其次项目 data/shapenetvipc 软链接，最后使用服务器归档目录。
+# Windows 使用 datasets/ShapeNetViPC-Dataset；相对覆盖路径以项目根目录为基准。
+__C.DATASETS.SHAPENET.VIPC_PATH = env_path('VIPC_DATA', vipc_default())
+__C.DATASETS.SHAPENET.TRAIN_LIST = env_path('EGIINET_TRAIN_LIST', 'data_pick_list/train_list.txt')
 __C.DATASETS.SHAPENET.TEST_LIST = env_path('EGIINET_TEST_LIST', 'data_pick_list/test_list.txt')
 
 # =============================================================================
@@ -46,10 +47,11 @@ __C.CONST.DATA_perfetch                          = 2
 __C.DIR                                          = edict()
 
 # 训练结果的根目录。
-# run/train.py 会在其下按以下结构创建检查点和 TensorBoard 日志：
-# OUT_PATH/<训练类别>/checkpoints/<时间>/ 和 OUT_PATH/<训练类别>/logs/<时间>/。
-__C.DIR.OUT_PATH = env_path('EGIINET_OUTPUT', 'output/%s' % __C.DATASETS.SHAPENET.N_POINTS)
-__C.DIR.WEIGHTS = env_path('EGIINET_WEIGHTS_DIR', 'checkpoints')
+# 每次训练在其下创建独立实验目录，内含 checkpoints/、logs/ 和 configs/。
+__C.DIR.OUT_PATH = env_path('EGIINET_OUTPUT', storage_default('runs', 'runs'))
+# 归档中的 checkpoint 目前为空；测试前需放入权重或通过环境变量指定。
+__C.DIR.WEIGHTS = env_path('EGIINET_WEIGHTS_DIR', storage_default(
+    'data/raw/shapenet_vipc/checkpoint', 'checkpoints'))
 
 # 指定程序可见的 GPU 编号，对应 main.py 中的 CUDA_VISIBLE_DEVICES。
 # '0' 表示只使用第 0 张 GPU；多卡可写成 '0,1'。
@@ -143,7 +145,7 @@ __C.TRAIN.NORMAL_LOSS_WEIGHT                     = 0.01
 # 训练和训练期间验证所使用的物体类别。
 # 可用名称由 utils/ViPCdataloader.py 的 cat_map 定义，如 plane、car、chair、table；
 # 使用 'all' 表示不过滤类别。
-__C.TRAIN.CATE                                   = 'plane'
+__C.TRAIN.CATE                                   = 'all'
 
 # 预留字段。当前项目没有读取该参数，修改它不会影响训练。
 __C.TRAIN.d_size                                 = 1

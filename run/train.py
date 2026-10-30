@@ -2,6 +2,11 @@
 
 import logging
 import os
+import json
+import shutil
+import subprocess
+from pathlib import Path
+from runtime_paths import PROJECT_ROOT
 import torch
 from torch.utils.data import DataLoader
 from models.EGIInet import EGIInet
@@ -53,12 +58,27 @@ def train_net(cfg):
                                    drop_last=True,
                                    **({'prefetch_factor': cfg.CONST.DATA_perfetch} if cfg.CONST.NUM_WORKERS > 0 else {}))
 
-    # 按类别和时间创建 checkpoint、TensorBoard 日志目录。
-    output_dir = os.path.join(cfg.DIR.OUT_PATH, cfg.TRAIN.CATE, '%s', datetime.now().strftime('%y-%m-%d-%H-%M-%S'))
-    cfg.DIR.CHECKPOINTS = output_dir % 'checkpoints'
-    cfg.DIR.LOGS = output_dir % 'logs'
-    if not os.path.exists(cfg.DIR.CHECKPOINTS):
-        os.makedirs(cfg.DIR.CHECKPOINTS)
+    # 按归档约定，一次实验一个目录；微秒时间戳避免连续启动时复用目录。
+    run_name = '%s_egiinet_%s_%d' % (
+        datetime.now().strftime('%Y%m%d_%H%M%S_%f'), cfg.TRAIN.CATE,
+        cfg.DATASETS.SHAPENET.N_POINTS)
+    cfg.DIR.RUN = os.path.join(cfg.DIR.OUT_PATH, run_name)
+    cfg.DIR.CHECKPOINTS = os.path.join(cfg.DIR.RUN, 'checkpoints')
+    cfg.DIR.LOGS = os.path.join(cfg.DIR.RUN, 'logs')
+    cfg.DIR.CONFIGS = os.path.join(cfg.DIR.RUN, 'configs')
+    for directory in (cfg.DIR.CHECKPOINTS, cfg.DIR.LOGS, cfg.DIR.CONFIGS):
+        os.makedirs(directory, exist_ok=False)
+    shutil.copy2(PROJECT_ROOT / 'config_vipc.py', Path(cfg.DIR.CONFIGS) / 'config_vipc.py')
+    with open(Path(cfg.DIR.CONFIGS) / 'resolved_config.json', 'w', encoding='utf-8') as file:
+        json.dump(cfg, file, ensure_ascii=False, indent=2)
+    try:
+        revision = subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'], cwd=str(PROJECT_ROOT), stderr=subprocess.DEVNULL,
+            text=True).strip()
+    except (OSError, subprocess.CalledProcessError):
+        revision = 'unavailable (no git checkout)'
+    (Path(cfg.DIR.CONFIGS) / 'git_revision.txt').write_text(revision + '\n', encoding='utf-8')
+    logging.info('Experiment directory: %s', cfg.DIR.RUN)
 
     # 分别记录训练 batch/epoch 指标和验证指标。
     train_writer = SummaryWriter(os.path.join(cfg.DIR.LOGS, 'train'))
